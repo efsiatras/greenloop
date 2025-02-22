@@ -56,12 +56,12 @@ const Map = forwardRef<MapRef>((props, ref) => {
 
   return (
     <div className="relative w-full h-full">
-      <div className="absolute top-4 left-4 z-[1000] bg-background/80 backdrop-blur-sm rounded-lg p-4 shadow-lg border">
+      <div className="absolute top-4 left-4 z-[1000] bg-background/50 backdrop-blur-sm rounded-lg p-4 shadow-lg border">
         <div className="flex items-center gap-2">
           <Zap className="h-6 w-6 text-primary" />
           <div className="flex flex-col">
-            <h1 className="font-bold text-lg">Energy Advisor</h1>
-            <p className="text-xs text-muted-foreground">Renewable Energy Optimization</p>
+            <h1 className="font-bold text-lg"> Evergreen</h1>
+            <p className="text-xs text-muted-foreground">Strategic Renewable Energy Advisor</p>
           </div>
         </div>
       </div>

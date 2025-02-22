@@ -7,10 +7,10 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Energy Advisor",
-    default: "Energy Advisor",
+    template: "%s | Evergreen",
+    default: "Evergreen",
   },
-  description: "Renewable Energy Optimization Platform",
+  description: "Strategic Advisor for Renewable Energy Optimization",
 }
 
 export default function RootLayout({
