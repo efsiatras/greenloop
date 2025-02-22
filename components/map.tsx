@@ -1,41 +1,58 @@
 "use client"
-
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from "react"
 import { Zap } from "lucide-react"
-import dynamic from "next/dynamic"
-import "leaflet/dist/leaflet.css"
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 
-// Dynamically import Leaflet component to avoid SSR issues
-const MapContainer = dynamic(() => import("react-leaflet").then((mod) => mod.MapContainer), { ssr: false })
-const TileLayer = dynamic(() => import("react-leaflet").then((mod) => mod.TileLayer), { ssr: false })
-const ZoomControl = dynamic(() => import("react-leaflet").then((mod) => mod.ZoomControl), { ssr: false })
+export interface MapRef {
+  setLocation: (lat: number, lng: number) => void
+}
 
-export default function Map() {
+const Map = forwardRef<MapRef>((props, ref) => {
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const map = useRef<mapboxgl.Map | null>(null)
   const [loading, setLoading] = useState(true)
+  const [center] = useState<[number, number]>([20, 30])
 
-  useEffect(() => {
-    // Fix for Leaflet marker icons in Next.js
-    const fixLeafletIcons = async () => {
-      const L = await import("leaflet")
-      delete L.Icon.Default.prototype._getIconUrl
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "/marker-icon-2x.png",
-        iconUrl: "/marker-icon.png",
-        shadowUrl: "/marker-shadow.png",
+  useImperativeHandle(ref, () => ({
+    setLocation: (lat: number, lng: number) => {
+      map.current?.flyTo({
+        center: [lng, lat],
+        zoom: 11,
+        duration: 4000, // Duration in milliseconds
+        essential: true
       })
     }
+  }))
 
-    fixLeafletIcons()
-    setLoading(false)
-  }, [])
+  useEffect(() => {
+    if (!mapContainer.current) return
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading map...</div>
-      </div>
-    )
-  }
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+    if (!mapboxToken) {
+      console.error('Mapbox token not found in environment variables')
+      return
+    }
+
+    mapboxgl.accessToken = mapboxToken
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/navigation-guidance-day-v4',
+      center: center,
+      zoom: 2
+    })
+
+    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right')
+
+    map.current.on('load', () => {
+      setLoading(false)
+    })
+
+    return () => {
+      map.current?.remove()
+    }
+  }, [center])
 
   return (
     <div className="relative w-full h-full">
@@ -48,19 +65,15 @@ export default function Map() {
           </div>
         </div>
       </div>
-      <MapContainer
-        center={[34.0522, -118.2437]} // Los Angeles
-        zoom={9}
-        className="w-full h-full"
-        zoomControl={false}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-        <ZoomControl position="topright" />
-      </MapContainer>
+      <div ref={mapContainer} className="w-full h-full" />
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+          <div className="animate-pulse text-muted-foreground">Loading map...</div>
+        </div>
+      )}
     </div>
   )
-}
+})
 
+Map.displayName = 'Map'
+export default Map
