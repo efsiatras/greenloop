@@ -1,19 +1,24 @@
 "use client"
 
-import Map from "@/components/map"
+import { useRef } from "react"
+import Map, { MapRef } from "@/components/map"
 import Chat from "@/components/chat"
 
 export default function EnergyAdvisorDashboard() {
+  const mapRef = useRef<MapRef>(null)
+
+  const handleLocationUpdate = (lat: number, lng: number) => {
+    mapRef.current?.setLocation(lat, lng)
+  }
+
   return (
     <main className="flex h-screen">
-      {/* Map Section */}
-      <div className="w-1/2 h-full border-r">
-        <Map />
+      <div className="w-4/6 h-full border-r">
+        <Map ref={mapRef} />
       </div>
 
-      {/* Chat Section */}
-      <div className="w-1/2 h-full bg-background">
-        <Chat />
+      <div className="w-2/6 h-full bg-background">
+        <Chat onLocationUpdate={handleLocationUpdate} />
       </div>
     </main>
   )
