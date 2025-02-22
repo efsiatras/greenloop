@@ -35,7 +35,7 @@ import requests
 # DEGREE_DAYS_COOLING: Cooling degree days.
 
 def get_solar_data(lat, lon):
-    url = f"https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=ALLSKY_SFC_SW_DWN&community=SB&longitude={lon}&latitude={lat}&start=2017&end=2018&format=JSON"
+    url = f"https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=PRECTOT&community=SB&longitude={lon}&latitude={lat}&start=2017&end=2018&format=JSON"
 
     response = requests.get(url)
 
