@@ -29,8 +29,8 @@ def get_temperature_data(lat, lon, start_year, end_year):
 
 # Example Usage
 lat, lon = 37.98, 23.73  # Athens, Greece
-start_year = 2017
-end_year = 2017
+start_year = 2020
+end_year = 2020
 
 temperature = get_temperature_data(lat, lon, start_year, end_year)
 
@@ -55,3 +55,35 @@ if temperature:
         print(f"Annual Mean Temperature: {annual_mean_temp:.2f} °C")
     else:
         print("No temperature data available.")
+
+# save_to_csv function
+import csv
+
+def save_to_csv(temperature_data, filename='temperature_data.csv'):
+    # Open a file to write
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        # Write the header
+        writer.writerow(["Date", "Temperature (°C)"])
+        
+        # Write each key-value pair
+        for date, temp in temperature_data.items():
+            writer.writerow([date, temp])
+    
+    print(f"Data saved to {filename}")
+
+if temperature:
+    save_to_csv(temperature)
+
+# save_to_json function
+"""
+import json
+
+def save_to_json(temperature_data, filename='temperature_data.json'):
+    with open(filename, 'w') as file:
+        json.dump(temperature_data, file, indent=4)
+    print(f"Data saved to {filename}")
+
+if temperature:
+    save_to_json(temperature)
+"""

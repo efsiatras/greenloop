@@ -16,4 +16,4 @@ def get_satellite_image(lat, lon, zoom=12, size="600x600", api_key="api"):
 
 # Example Usage
 API_KEY = "AIzaSyC1cMCt9bc2xu2sgUx4Z1pdfZHdm1yEoeE"
-get_satellite_image(39.074208, 21.824312, zoom=16, size="600x600", api_key=API_KEY)
+get_satellite_image(37.074208, 21.824312, zoom=20, size="600x600", api_key=API_KEY)

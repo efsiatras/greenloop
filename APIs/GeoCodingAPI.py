@@ -5,7 +5,7 @@ import requests
 API_KEY = "AIzaSyC1cMCt9bc2xu2sgUx4Z1pdfZHdm1yEoeE"
 
 # Place to search for
-place = "Ohi, Greece"
+place = "Athens, Greece"
 
 # Construct request URL
 url = f"https://maps.googleapis.com/maps/api/geocode/json?address={place}&key={API_KEY}"
