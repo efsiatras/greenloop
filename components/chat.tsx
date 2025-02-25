@@ -8,15 +8,16 @@ import { Send, User, Bot } from "lucide-react"
 import { geocodeLocation } from "@/lib/utils"
 import { CohereClientV2 } from 'cohere-ai'
 import dynamic from 'next/dynamic'
+import ReactMarkdown from 'react-markdown'
 
 const Plot = dynamic(() => import('react-plotly.js'), {
-  ssr: false, // Disable server-side rendering
+  ssr: false,
   loading: () => <div>Loading plot...</div>
 })
 
 // Initialize Cohere client with your API key
 const cohere = new CohereClientV2({
-  token: "K7dzLTRMsiVuSZmOpFxq5AtjLHNUfhZ27Lh1WVAd",
+  token: process.env.NEXT_PUBLIC_COHERE_API_KEY
 });
 
 interface ChatProps {
@@ -31,92 +32,96 @@ interface Message {
     lat: number;
     lng: number;
   };
+  satelliteImageUrl?: string;
   data?: {
     aggregated: {
       solar: { radiation: number, cloudCover: number, temperature: number },
       wind: { speed: number, airDensity: number },
-      hydro: { rainfall: number },
     },
     monthly: {
       solar: { monthlyRadiation: Record<number, number> },
       wind: { monthlyWind10m: Record<number, number>, monthlyWind50m: Record<number, number> },
-      hydro: { monthlyRainfall: Record<number, number> },
     }
   };
   isTyping?: boolean;
 }
 
-// A component to render the energy plots
 function EnergyPlots({ monthlyData, onRender }: { 
-  monthlyData: Message["data"]['monthly'],
+  monthlyData: NonNullable<Message["data"]>["monthly"],
   onRender?: () => void 
 }) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Call onRender when plots are ready
   useEffect(() => {
     const renderTimeout = setTimeout(() => {
       onRender?.();
-    }, 300); // Wait for plots to be fully rendered
-
+    }, 300);
     return () => clearTimeout(renderTimeout);
   }, [onRender]);
 
   return (
-    <div className="space-y-6 mt-4">
+    // <div className="space-y-6 mt-4">
+    //   {/* Pie Chart for Land Cover Distribution */}
+    //   <div>
+    //     <h3 className="font-medium">Land Cover Distribution</h3>
+    //     <Plot
+    //       data={[
+    //         {
+    //           labels: ['Trees', 'Cropland', 'Built-up', 'Bare / Sparse vegetation'],
+    //           values: [2.3, 68.7, 25.6, 3.4],
+    //           type: 'pie',
+    //           marker: {
+    //             // Example color palette: green, yellow, orange, gray
+    //             colors: ['#27ae60', '#f1c40f', '#e67e22', '#95a5a6'],
+    //           },
+    //         },
+    //       ]}
+    //       layout={{ title: 'Land Cover Pie Chart', autosize: true }}
+    //       style={{ width: '100%', height: '300px' }}
+    //     />
+    //   </div>
+
+      {/* Monthly Solar Radiation */}
       <div>
         <h3 className="font-medium">Monthly Solar Radiation (W/m²)</h3>
         <Plot
           data={[
             {
               x: months,
-              y: Object.values(monthlyData.solar.monthlyRadiation),
+              y: Object.values(monthlyData.solar.monthlyRadiation) as number[],
               type: 'scatter',
               mode: 'lines+markers',
-              marker: { color: 'orange' },
+              marker: { color: "hsl(122, 52%, 53%)" },
             },
           ]}
           layout={{ title: 'Monthly Solar Radiation', autosize: true }}
           style={{ width: '100%', height: '300px' }}
         />
       </div>
+
+      {/* Monthly Wind Speeds */}
       <div>
         <h3 className="font-medium">Monthly Wind Speeds (m/s)</h3>
         <Plot
           data={[
             {
               x: months,
-              y: Object.values(monthlyData.wind.monthlyWind10m),
+              y: Object.values(monthlyData.wind.monthlyWind10m) as number[],
               type: 'scatter',
               mode: 'lines+markers',
               name: 'Wind 10m',
-              marker: { color: 'blue' },
+              marker: { color: "hsl(122, 52%, 23%)" },
             },
             {
               x: months,
-              y: Object.values(monthlyData.wind.monthlyWind50m),
+              y: Object.values(monthlyData.wind.monthlyWind50m) as number[],
               type: 'scatter',
               mode: 'lines+markers',
               name: 'Wind 50m',
-              marker: { color: 'green' },
+              marker: { color: "hsl(122, 52%, 65%)" },
             },
           ]}
           layout={{ title: 'Monthly Wind Speeds', autosize: true }}
-          style={{ width: '100%', height: '300px' }}
-        />
-      </div>
-      <div>
-        <h3 className="font-medium">Monthly Rainfall (mm)</h3>
-        <Plot
-          data={[
-            {
-              x: months,
-              y: Object.values(monthlyData.hydro.monthlyRainfall),
-              type: 'bar',
-              marker: { color: 'blue' },
-            },
-          ]}
-          layout={{ title: 'Monthly Rainfall', autosize: true }}
           style={{ width: '100%', height: '300px' }}
         />
       </div>
@@ -134,18 +139,21 @@ function TypingIndicator() {
   )
 }
 
+const getSatelliteImage = (lat: number, lng: number, zoom = 15, size = "600x300") => {
+  const API_KEY = "AIzaSyC1cMCt9bc2xu2sgUx4Z1pdfZHdm1yEoeE";
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=${zoom}&size=${size}&maptype=satellite&key=${API_KEY}`;
+};
+
 export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([{
     type: 'system',
-    text: "Hi! I'm your Energy Advisor. Share a location, and I'll analyze its renewable energy potential. You can type an address or coordinates (latitude, longitude)."
+    text: "Hi! I'm **Physis**. Share a location, and I'll analyze its renewable energy potential focusing on Solar and Wind energy."
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Update scroll behavior to be more reliable
   useEffect(() => {
     if (messagesEndRef.current) {
       const scrollTimeout = setTimeout(() => {
@@ -153,13 +161,11 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
           behavior: 'smooth',
           block: 'end'
         });
-      }, 100); // Small delay to ensure content is rendered
-
+      }, 100);
       return () => clearTimeout(scrollTimeout);
     }
   }, [messages]);
 
-  // Ensure scroll on new plots rendered
   const handlePlotRendered = () => {
     messagesEndRef.current?.scrollIntoView({ 
       behavior: 'smooth',
@@ -168,33 +174,30 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
   };
 
   const parseCoordinates = (text: string): { lat: number, lng: number } | null => {
-    const decimalRegex = /(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/
-    const degreesRegex = /(\d+\.?\d*)\s*°?\s*([NSns])[,\s]+(\d+\.?\d*)\s*°?\s*([EWew])/
+    const decimalRegex = /(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/;
+    const degreesRegex = /(\d+\.?\d*)\s*°?\s*([NSns])[,\s]+(\d+\.?\d*)\s*°?\s*([EWew])/;
     
-    const decimalMatch = text.match(decimalRegex)
+    const decimalMatch = text.match(decimalRegex);
     if (decimalMatch) {
-      const lat = parseFloat(decimalMatch[1])
-      const lng = parseFloat(decimalMatch[2])
-      
+      const lat = parseFloat(decimalMatch[1]);
+      const lng = parseFloat(decimalMatch[2]);
       if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng }
+        return { lat, lng };
       }
     }
     
-    const degreesMatch = text.match(degreesRegex)
+    const degreesMatch = text.match(degreesRegex);
     if (degreesMatch) {
-      let lat = parseFloat(degreesMatch[1])
-      let lng = parseFloat(degreesMatch[3])
-      
-      if (degreesMatch[2].toUpperCase() === 'S') lat = -lat
-      if (degreesMatch[4].toUpperCase() === 'W') lng = -lng
-      
+      let lat = parseFloat(degreesMatch[1]);
+      let lng = parseFloat(degreesMatch[3]);
+      if (degreesMatch[2].toUpperCase() === 'S') lat = -lat;
+      if (degreesMatch[4].toUpperCase() === 'W') lng = -lng;
       if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng }
+        return { lat, lng };
       }
     }
     
-    return null
+    return null;
   }
 
   const getEnergyAdvice = async (location: string, coordinates: { lat: number, lng: number }) => {
@@ -208,8 +211,7 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
         'T2M',                // Temperature
         'WS10M',              // Wind speed at 10m
         'WS50M',              // Wind speed at 50m
-        'PS',                 // Pressure
-        'PRECTOTCORR'         // Precipitation (corrected)
+        'PS'                  // Pressure (for air density)
       ].join(',');
 
       const url = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${parameters}&community=SB&longitude=${coordinates.lng}&latitude=${coordinates.lat}&start=${startyear}&end=${endyear}&format=JSON`;
@@ -226,14 +228,12 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
       const monthlyRadiation: Record<number, number> = {};
       const monthlyWind10m: Record<number, number> = {};
       const monthlyWind50m: Record<number, number> = {};
-      const monthlyRainfall: Record<number, number> = {};
       const monthlyAirDensity: Record<number, number> = {};
 
       for (let month = 1; month <= 12; month++) {
         monthlyRadiation[month] = 0;
         monthlyWind10m[month] = 0;
         monthlyWind50m[month] = 0;
-        monthlyRainfall[month] = 0;
         monthlyAirDensity[month] = 0;
       }
 
@@ -247,22 +247,20 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
             monthlyRadiation[month] += apiData['ALLSKY_SFC_SW_DWN'][key];
             monthlyWind10m[month] += apiData['WS10M'][key];
             monthlyWind50m[month] += apiData['WS50M'][key];
-            monthlyRainfall[month] += apiData['PRECTOTCORR'][key];
 
             const R = 287.05; // Gas constant for dry air
-            const P = apiData['PS'][key] * 1000; // kPa to Pa
-            const T = apiData['T2M'][key] + 273.15; // °C to K
+            const P = apiData['PS'][key] * 1000; // Convert kPa to Pa
+            const T = apiData['T2M'][key] + 273.15; // Convert °C to K
             monthlyAirDensity[month] += P / (R * T);
           }
         }
       }
 
-      // Average the values over the number of years
+      // Average the values over the years
       for (let month = 1; month <= 12; month++) {
         monthlyRadiation[month] /= (endyear - startyear + 1);
         monthlyWind10m[month] /= (endyear - startyear + 1);
         monthlyWind50m[month] /= (endyear - startyear + 1);
-        monthlyRainfall[month] /= (endyear - startyear + 1);
         monthlyAirDensity[month] /= (endyear - startyear + 1);
       }
 
@@ -285,7 +283,7 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
         }
       }
 
-      // Aggregated (average) data
+      // Aggregated data for Solar and Wind
       const renewableData = {
         solar: {
           meanRadiation: Object.values(monthlyRadiation).reduce((a, b) => a + b, 0) / 12,
@@ -295,13 +293,9 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
         wind: {
           meanSpeed50m: Object.values(monthlyWind50m).reduce((a, b) => a + b, 0) / 12,
           airDensity: meanAirDensity
-        },
-        hydro: {
-          annualRainfall: Object.values(monthlyRainfall).reduce((a, b) => a + b, 0) * 365
         }
       };
 
-      // Prepare the aggregated data for text output
       const formattedData = {
         solar: {
           radiation: renewableData.solar.meanRadiation,
@@ -311,62 +305,45 @@ export default function Chat({ onLocationUpdate, onFormSubmit }: ChatProps) {
         wind: {
           speed: renewableData.wind.meanSpeed50m,
           airDensity: renewableData.wind.airDensity
-        },
-        hydro: {
-          rainfall: renewableData.hydro.annualRainfall
         }
       };
 
-      // Create the prompt for Cohere using the aggregated values
-      const prompt = `Analyze the renewable energy potential for location: ${location} (${coordinates.lat}, ${coordinates.lng})
+      // Construct the prompt (excluding hydropower, and considering proximity to a city)
+      const prompt = `nalyze the renewable energy potential for location: ${location} (${coordinates.lat}, ${coordinates.lng})
 
-Using the following real data averaged over 3 years (2021-2023):
+Data provided (averaged over 3 years, 2021-2023):
 
-Solar Data:
-- Solar Radiation: ${formattedData.solar.radiation.toFixed(2)} W/m²
-- Cloud Cover: ${formattedData.solar.cloudCover.toFixed(2)}%
-- Temperature: ${formattedData.solar.temperature.toFixed(2)}°C
+Solar Energy Data:
+- Average Solar Radiation: ${formattedData.solar.radiation.toFixed(2)} W/m²
+- Average Cloud Cover: ${formattedData.solar.cloudCover.toFixed(2)}%
+- Average Temperature: ${formattedData.solar.temperature.toFixed(2)}°C
 
-Wind Data:
-- Wind Speed at 50m: ${formattedData.wind.speed.toFixed(2)} m/s
-- Air Density: ${formattedData.wind.airDensity.toFixed(3)} kg/m³
+Wind Energy Data:
+- Average Wind Speed at 50m: ${formattedData.wind.speed.toFixed(2)} m/s
+- Average Air Density: ${formattedData.wind.airDensity.toFixed(3)} kg/m³
 
-Hydropower Data:
-- Annual Rainfall: ${formattedData.hydro.rainfall.toFixed(2)} mm/year
+Please provide a concise, scientifically accurate analysis focusing only on Solar and Wind energy potential. Do not consider hydropower or other energy forms.
 
-Please provide a comprehensive analysis covering:
+Additionally, consider the proximity of the location to the nearest city. If the site is near a major urban center, note that it is generally more favorable due to better infrastructure and higher energy demand.
 
-1. Solar Energy Potential:
-   - Based on the 3-year average solar radiation and cloud cover data
-   - Consider temperature impact on panel efficiency
-   - Recommend optimal panel configurations
+Your response should have the following structure:
+**Short Summary**: A brief (2-3 sentences) statement summarizing the recommended renewable energy option based on the data.
 
-2. Wind Energy Feasibility:
-   - Based on the measured wind speeds at 50m height and air density
-   - Suggest suitable turbine types
-   - Consider seasonal variations
+**Solar Energy Analysis**: Evaluate solar potential based on solar radiation, cloud cover, and temperature. Include recommendations for panel configurations.
 
-3. Hydropower Potential:
-   - Based on annual rainfall patterns
-   - Consider seasonal variations
-   - Suggest feasible hydropower solutions if applicable
+**Wind Energy Analysis**: Evaluate wind potential based on wind speed and air density. Suggest suitable turbine types.
 
-4. Recommendations:
-   - Rank the renewable options based on the historical data
-   - Provide specific installation suggestions
-   - Include estimated energy generation potential
-   - Consider cost-effectiveness and seasonal reliability
+**Overall Recommendation**: Rank the renewable options (Solar vs. Wind with > or <) based on the data, considering estimated energy generation, cost-effectiveness, and proximity to a city.
 
-Please provide practical, actionable recommendations based on this historical data.`;
+Keep the response concise and strictly based on the provided data.`;
 
       // Call Cohere Chat API v2 with streaming disabled
       const chatResponse = await cohere.chat({
         model: 'command-r-plus-08-2024',
-        stream: false,
         messages: [
           {
             role: 'system',
-            content: "You are an Energy Advisor who provides detailed analysis on renewable energy potential based on historical data."
+            content: "You are an Energy Advisor who provides scientifically accurate analyses on renewable energy potential based on historical data."
           },
           {
             role: 'user',
@@ -375,20 +352,20 @@ Please provide practical, actionable recommendations based on this historical da
         ],
       });
 
-      // Extract generated text from response message content (joining parts if necessary)
       const messageContent = Array.isArray(chatResponse.message.content)
         ? chatResponse.message.content.map(part => part.text).join('')
-        : chatResponse.message.content;
+        : chatResponse.message.content || '';
 
-      // Return both aggregated and monthly data for later plotting
+      const normalizedText = messageContent
+      // replace(/\n\s*\n/g, '\n');
+
       return {
-        text: messageContent,
+        text: normalizedText,
         data: {
           aggregated: formattedData,
           monthly: {
             solar: { monthlyRadiation },
-            wind: { monthlyWind10m, monthlyWind50m },
-            hydro: { monthlyRainfall }
+            wind: { monthlyWind10m, monthlyWind50m }
           }
         }
       };
@@ -409,66 +386,65 @@ Please provide practical, actionable recommendations based on this historical da
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
-    onFormSubmit()
-    setIsLoading(true)
-    setInput("")
-    setIsAnalyzing(true)
+    onFormSubmit();
+    setIsLoading(true);
+    setInput("");
     
-    setMessages(prev => [...prev, { text: input, type: 'user' }])
+    setMessages(prev => [...prev, { text: input, type: 'user' }]);
 
     try {
-      const coords = parseCoordinates(input)
-      let location: string
-      let coordinates: { lat: number, lng: number }
+      const coords = parseCoordinates(input);
+      let location: string;
+      let coordinates: { lat: number, lng: number };
 
       if (coords) {
-        coordinates = coords
-        location = `${coords.lat}, ${coords.lng}`
-        onLocationUpdate(coords.lat, coords.lng)
+        coordinates = coords;
+        location = `${coords.lat}, ${coords.lng}`;
+        onLocationUpdate(coords.lat, coords.lng);
       } else {
-        const result = await geocodeLocation(input)
+        const result = await geocodeLocation(input);
         if (!result.success) {
-          throw new Error(result.error)
+          throw new Error(result.error);
         }
-        coordinates = { lat: result.lat, lng: result.lng }
-        location = result.formattedAddress
-        onLocationUpdate(result.lat, result.lng)
+        coordinates = { lat: result.lat, lng: result.lng };
+        location = result.formattedAddress;
+        onLocationUpdate(result.lat, result.lng);
       }
 
-      // Add analyzing message with typing indicator
       setMessages(prev => [...prev, { 
         text: `Analyzing renewable energy potential for ${location}...`,
         type: 'system',
         coordinates,
-        isTyping: true
-      }])
+        isTyping: true,
+        satelliteImageUrl: getSatelliteImage(coordinates.lat, coordinates.lng)
+      }]);
 
-      const { text, data } = await getEnergyAdvice(location, coordinates)
+      const { text, data } = await getEnergyAdvice(location, coordinates);
       
-      // Replace the analyzing message with the final response
       setMessages(prev => {
-        const newMessages = prev.filter(msg => !msg.isTyping)
+        const newMessages = prev.filter(msg => !msg.isTyping);
         return [...newMessages, {
-          text,
+          text: text || 'Analysis complete',
           type: 'system',
-          data
-        }]
-      })
+          coordinates,
+          data,
+          satelliteImageUrl: getSatelliteImage(coordinates.lat, coordinates.lng)
+        } as Message];
+      });
 
     } catch (error) {
       setMessages(prev => {
-        const newMessages = prev.filter(msg => !msg.isTyping)
+        const newMessages = prev.filter(msg => !msg.isTyping);
         return [...newMessages, {
           text: error instanceof Error ? error.message : 'An error occurred',
           type: 'system'
-        }]
-      })
+        }];
+      });
     } finally {
-      setIsLoading(false)
-      setIsAnalyzing(false)
+      setIsLoading(false);
     }
   }
 
@@ -497,14 +473,30 @@ Please provide practical, actionable recommendations based on this historical da
               ) : (
                 <>
                   <Bot className="h-5 w-5 text-primary" />
-                  <span>Energy Advisor</span>
+                  <span>Physis</span>
                 </>
               )}
             </div>
             <div className="mt-2 text-pretty whitespace-pre-wrap">
-              {message.text}
+              {message.isTyping ? (
+                message.text
+              ) : (
+                <ReactMarkdown>
+                  {message.text}
+                </ReactMarkdown>
+              )}
               {message.isTyping && <TypingIndicator />}
             </div>
+            {message.type === 'system' && message.coordinates && (
+              <div className="mt-4">
+                <h3 className="font-medium mb-2">Satellite View:</h3>
+                <img 
+                  src={getSatelliteImage(message.coordinates.lat, message.coordinates.lng)} 
+                  alt="Satellite view of location"
+                  className="rounded-lg w-full max-w-[600px] h-auto"
+                />
+              </div>
+            )}
             {message.type === 'system' && message.data && message.data.monthly && (
               <EnergyPlots 
                 monthlyData={message.data.monthly} 
