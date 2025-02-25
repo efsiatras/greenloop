@@ -1,6 +1,6 @@
-## Greenloop: Strategic Renewable Energy Advisor
+# Greenloop: Strategic Renewable Energy Advisor
 
-Greenloop is a modern, full-stack web application designed to provide strategic advice for renewable energy optimization. The application leverages interactive maps, an AI-powered chat assistant, and dynamic data visualizations to help you analyze the potential of solar and wind energy at various locations.
+Greenloop is a web platform, developed in 48 hours during a hackathon competition, designed to provide preliminary strategic advice for renewable energy systems. The platform contains an interactive map, an AI assistant, and dynamic data visualizations to analyze the potential of solar and wind energy systems at any location.
 
 ## Features
 
@@ -10,7 +10,7 @@ Greenloop is a modern, full-stack web application designed to provide strategic 
 - **External API Integration**: Retrieves data from external APIs including:
   - **NASA Power API** for solar and wind energy data
   - **Google Maps Static API** for satellite imagery
-  - **Cohere Chat API** for generating energy analysis
+  - **Cohere Chat** for generating energy analysis
   - **Mapbox** for interactive, high-quality mapping
 
 ## Tech Stack
@@ -40,7 +40,7 @@ Ensure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/greenloop.git
+   git clone https://github.com/efsiatras/greenloop.git
    ```
 2. Navigate to the project directory:
    ```bash
@@ -71,6 +71,12 @@ Make sure to configure the following environment variables in a `.env.local` fil
 
 Additional environment variables may be required for external API integrations. Refer to the project documentation for details.
 
+## Contributors
+## Collaborators
+- [Efstathios Siatras](https://github.com/efsiatras "Efstathios Siatras")
+- [George Moschovis](https://github.com/georgemoschovis "George Moschovis")
+- [Ioannis Paterakis](https://github.com/gianpate "Ioannis Paterakis")
+ 
 ## License
 
 Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
